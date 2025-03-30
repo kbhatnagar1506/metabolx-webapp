@@ -1,0 +1,2232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetabolX - Patient Analysis Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Add Chart.js and its dependencies -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels"></script>
+    <script src="https://cdn.jsdelivr.net/npm/moment"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-moment"></script>
+    <style>
+        :root {
+            --primary-color: #007AFF;
+            --secondary-color: #5856D6;
+            --success-color: #34C759;
+            --warning-color: #FF9500;
+            --danger-color: #FF3B30;
+            --background-color: #F2F2F7;
+            --card-background: #FFFFFF;
+            --text-primary: #000000;
+            --text-secondary: #8E8E93;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--background-color);
+            color: var(--text-primary);
+            line-height: 1.5;
+        }
+
+        .card {
+            background: var(--card-background);
+            border-radius: 16px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            transition: all 0.3s ease;
+            border: 1px solid rgba(0, 0, 0, 0.05);
+        }
+
+        .card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+        }
+
+        .metric-card {
+            background: var(--card-background);
+            border-radius: 12px;
+            padding: 16px;
+            transition: all 0.2s ease;
+        }
+
+        .status-badge {
+            padding: 0.25rem 0.75rem;
+            border-radius: 9999px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-badge.critical {
+            background-color: var(--danger-color);
+            color: white;
+        }
+
+        .status-badge.warning {
+            background-color: var(--warning-color);
+            color: white;
+        }
+
+        .status-badge.monitor {
+            background-color: var(--success-color);
+            color: white;
+        }
+
+        .progress-bar {
+            height: 6px;
+            background: rgba(0, 0, 0, 0.05);
+            border-radius: 3px;
+            overflow: hidden;
+        }
+
+        .progress-bar-fill {
+            height: 100%;
+            border-radius: 3px;
+            transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            transition: color 0.2s ease;
+            font-size: 15px;
+            font-weight: 500;
+        }
+
+        .nav-link:hover {
+            color: var(--primary-color);
+        }
+
+        .nav-link.active {
+            color: var(--primary-color);
+            font-weight: 600;
+        }
+
+        .btn {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 14px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-primary {
+            background: var(--primary-color);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0066CC;
+            transform: translateY(-1px);
+        }
+
+        .btn-secondary {
+            background: rgba(0, 0, 0, 0.05);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: rgba(0, 0, 0, 0.08);
+            transform: translateY(-1px);
+        }
+
+        .chart-container {
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+
+        .metric-value {
+            font-size: 24px;
+            font-weight: 700;
+            line-height: 1.2;
+        }
+
+        .metric-label {
+            font-size: 13px;
+            color: var(--text-secondary);
+            margin-top: 4px;
+        }
+
+        .table-row {
+            transition: background-color 0.2s ease;
+        }
+
+        .table-row:hover {
+            background-color: rgba(0, 0, 0, 0.02);
+        }
+
+        .scrollbar-hide::-webkit-scrollbar {
+            display: none;
+        }
+
+        .scrollbar-hide {
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .animate-fade-in {
+            animation: fadeIn 0.5s ease-out forwards;
+        }
+
+        /* Email Modal Styles */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .modal.visible {
+            display: flex;
+            opacity: 1;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 0.5rem;
+            width: 90%;
+            max-width: 500px;
+            position: relative;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #666;
+            cursor: pointer;
+            padding: 0.5rem;
+            transition: color 0.2s;
+        }
+
+        .modal-close:hover {
+            color: #000;
+        }
+
+        .email-input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #E5E7EB;
+            border-radius: 0.375rem;
+            margin: 1rem 0;
+            font-size: 1rem;
+        }
+
+        .email-input:focus {
+            border-color: #3B82F6;
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .success-message {
+            color: #059669;
+            margin-top: 0.5rem;
+            display: none;
+            font-size: 0.875rem;
+        }
+
+        .error-message {
+            color: #DC2626;
+            margin-top: 0.5rem;
+            display: none;
+            font-size: 0.875rem;
+        }
+
+        .medications-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-top: 2rem;
+        }
+
+        .medication-card {
+            background: var(--card-bg);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .medication-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .medication-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .medication-header h3 {
+            margin: 0;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .medication-dosage {
+            background: var(--primary);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.9rem;
+        }
+
+        .medication-details {
+            color: var(--text);
+        }
+
+        .medication-details p {
+            margin: 0.5rem 0;
+            font-size: 0.95rem;
+        }
+
+        .medication-details strong {
+            color: var(--primary);
+        }
+
+        .medications-section {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            margin-top: 24px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        .medications-section h3 {
+            font-size: 1.5rem;
+            color: #2d3436;
+            margin-bottom: 20px;
+        }
+
+        .medications-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 16px;
+        }
+
+        .medication-card {
+            display: flex;
+            align-items: center;
+            padding: 16px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            transition: transform 0.3s ease;
+        }
+
+        .medication-card:hover {
+            transform: translateY(-3px);
+        }
+
+        .medication-icon {
+            font-size: 1.5rem;
+            margin-right: 16px;
+        }
+
+        .medication-details h4 {
+            font-size: 1rem;
+            color: #2d3436;
+            margin: 0;
+        }
+
+        @media (max-width: 768px) {
+            .medications-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .metric-item {
+            padding: 8px;
+            border-radius: 8px;
+            transition: background-color 0.2s;
+        }
+
+        .metric-item:hover {
+            background-color: rgba(0, 0, 0, 0.03);
+        }
+
+        .metric-name {
+            font-size: 0.9rem;
+            color: #495057;
+        }
+
+        .metric-value-container {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .progress {
+            border-radius: 4px;
+            background-color: #e9ecef;
+        }
+
+        .progress-bar {
+            border-radius: 4px;
+            transition: width 0.6s ease;
+        }
+
+        .badge {
+            padding: 6px 10px;
+            font-weight: 500;
+        }
+
+        .badge i {
+            margin-right: 4px;
+        }
+
+        .badge-success {
+            background-color: #28a745;
+            color: white;
+        }
+
+        .badge-warning {
+            background-color: #ffc107;
+            color: #212529;
+        }
+
+        .badge-danger {
+            background-color: #dc3545;
+            color: white;
+        }
+
+        /* Progress bar colors */
+        .progress-bar-excellent {
+            background-color: #28a745;
+        }
+
+        .progress-bar-good {
+            background-color: #17a2b8;
+        }
+
+        .progress-bar-fair {
+            background-color: #ffc107;
+        }
+
+        .progress-bar-poor {
+            background-color: #dc3545;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Navigation -->
+    <nav class="bg-white/80 backdrop-blur-xl border-b border-gray-100 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between h-16">
+                <div class="flex items-center">
+                    <div class="flex items-center space-x-3">
+                        <svg class="w-8 h-8 text-blue-600" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div>
+                            <h1 class="text-2xl font-bold text-gray-900">MetabolX</h1>
+                            <p class="text-sm text-gray-500">Patient Analysis Dashboard</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <div class="text-sm text-gray-500">
+                        Analysis Date: {{ result.analysisDate }}
+                    </div>
+                    <button onclick="window.print()" class="btn btn-secondary inline-flex items-center">
+                        <svg class="h-4 w-4 mr-1.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                        </svg>
+                        Export Report
+                    </button>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Top Actions -->
+        <div class="flex justify-end mb-6 gap-4">
+            <button onclick="window.print()" class="btn-secondary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z"/>
+                </svg>
+                Print Report
+            </button>
+            <button onclick="showEmailModal()" class="btn-primary">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/>
+                </svg>
+                Email Report
+            </button>
+        </div>
+
+        <!-- Patient Info Card -->
+        <div class="card p-6 mb-8 animate-fade-in">
+            <div class="flex justify-between items-start mb-6">
+                <div>
+                    <h2 class="text-2xl font-bold text-gray-900 mb-2">{{ result.patientInfo.name }}</h2>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                        <div class="metric-card">
+                            <div class="metric-value">{{ result.patientInfo.age }}</div>
+                            <div class="metric-label">Age (years)</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ result.patientInfo.gender|title }}</div>
+                            <div class="metric-label">Gender</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ result.patientInfo.bmi }}</div>
+                            <div class="metric-label">BMI ({{ result.patientInfo.bmiCategory }})</div>
+                        </div>
+                        <div class="metric-card">
+                            <div class="metric-value">{{ result.patientInfo.ethnicity|title }}</div>
+                            <div class="metric-label">Ethnicity</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <div class="text-sm text-gray-500 mb-1">Patient ID</div>
+                    <div class="font-mono text-sm bg-gray-50 px-3 py-1 rounded-lg border border-gray-100">{{ "MX-%04d"|format(range(1, 9999)|random) }}</div>
+                </div>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div class="metric-card">
+                    <div class="text-sm font-medium text-gray-500 mb-2">Diagnosed Conditions</div>
+                    <div class="space-y-2">
+                        {% if result.patientInfo.conditions %}
+                            {% for condition in result.patientInfo.conditions %}
+                                <div class="bg-red-50 text-red-700 px-3 py-2 rounded-lg border border-red-100">{{ condition|trim }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-gray-500">None reported</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="text-sm font-medium text-gray-500 mb-2">Current Medications</div>
+                    <div class="space-y-2">
+                        {% if result.patientInfo.medications %}
+                            {% for medication in result.patientInfo.medications %}
+                                <div class="bg-blue-50 text-blue-700 px-3 py-2 rounded-lg border border-blue-100">{{ medication|trim }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-gray-500">None reported</div>
+                        {% endif %}
+                    </div>
+                </div>
+                <div class="metric-card">
+                    <div class="text-sm font-medium text-gray-500 mb-2">Allergies</div>
+                    <div class="space-y-2">
+                        {% if result.patientInfo.allergies %}
+                            {% for allergy in result.patientInfo.allergies %}
+                                <div class="bg-yellow-50 text-yellow-700 px-3 py-2 rounded-lg border border-yellow-100">{{ allergy|trim }}</div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="text-gray-500">None reported</div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Summary Cards -->
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <!-- Health Score -->
+            <div class="card animate-fade-in" style="animation-delay: 0.1s">
+                <div class="p-6">
+                    <div class="flex items-center justify-between mb-4">
+                        <h3 class="text-lg font-semibold">Health Score</h3>
+                        <div class="status-badge {% if result.healthScore < 50 %}critical{% elif result.healthScore < 70 %}warning{% else %}monitor{% endif %}">
+                            {{ "Critical" if result.healthScore < 50 else "Needs Attention" if result.healthScore < 70 else "Good" }}
+                        </div>
+                    </div>
+                    <div class="flex items-baseline">
+                        <div class="text-5xl font-bold {% if result.healthScore < 50 %}text-red-600{% elif result.healthScore < 70 %}text-yellow-600{% else %}text-green-600{% endif %}">
+                            {{ result.healthScore }}
+                        </div>
+                        <div class="ml-2 text-sm text-gray-500">/100</div>
+                    </div>
+                    <div class="mt-4">
+                        <div class="w-full bg-gray-200 rounded-full h-2">
+                            <div class="h-2 rounded-full transition-all duration-500 ease-out {% if result.healthScore < 50 %}bg-red-600{% elif result.healthScore < 70 %}bg-yellow-600{% else %}bg-green-600{% endif %}" 
+                                 style="width: {{ result.healthScore }}%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Critical Markers -->
+            <div class="card animate-fade-in" style="animation-delay: 0.2s">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold mb-4">Critical Markers</h3>
+                    <div class="space-y-3">
+                        {% for marker in result.criticalMarkers %}
+                        <div class="flex items-center text-red-600 bg-red-50 px-3 py-2 rounded-lg border border-red-100">
+                            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ marker }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+
+            <!-- Improvement Areas -->
+            <div class="card animate-fade-in" style="animation-delay: 0.3s">
+                <div class="p-6">
+                    <h3 class="text-lg font-semibold mb-4">Improvement Areas</h3>
+                    <div class="space-y-3">
+                        {% for area in result.improvementAreas %}
+                        <div class="flex items-center text-yellow-600 bg-yellow-50 px-3 py-2 rounded-lg border border-yellow-100">
+                            <svg class="h-5 w-5 mr-2" fill="currentColor" viewBox="0 0 20 20">
+                                <path fill-rule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-8-3a1 1 0 00-.867.5 1 1 0 11-1.731-1A3 3 0 0113 8a3.001 3.001 0 01-2 2.83V11a1 1 0 11-2 0v-1a1 1 0 011-1 1 1 0 100-2zm0 8a1 1 0 100-2 1 1 0 000 2z" clip-rule="evenodd"/>
+                            </svg>
+                            {{ area }}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Health Metrics Card -->
+        <div class="card animate-fade-in mb-8" style="animation-delay: 0.4s">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-6">
+                    <h3 class="text-lg font-semibold">Advanced Health Analysis</h3>
+                    <div class="status-badge monitor">
+                        Comprehensive View
+                    </div>
+                </div>
+                
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <!-- Health Indices Column -->
+                    <div>
+                        <h4 class="text-md font-medium text-gray-700 mb-4">Health Indices</h4>
+                        <div class="space-y-4">
+                            {% for key, value in result.advancedFeatures.items() %}
+                            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-600">{{ key|replace('_', ' ')|title }}</span>
+                                    <span class="text-sm font-semibold {% if value >= 80 %}text-green-600{% elif value >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                        {{ value|round|int }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all duration-500 {% if value >= 80 %}bg-green-600{% elif value >= 60 %}bg-yellow-600{% else %}bg-red-600{% endif %}" 
+                                         style="width: {{ value|round|int }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- System Analysis Column -->
+                    <div>
+                        <h4 class="text-md font-medium text-gray-700 mb-4">System Analysis</h4>
+                        <div class="space-y-4">
+                            {% for key, value in result.systemScores.items() %}
+                            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-600">{{ key|title }} System</span>
+                                    <span class="text-sm font-semibold {% if value >= 80 %}text-green-600{% elif value >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                        {{ value|round|int }}%
+                                    </span>
+                                </div>
+                                <div class="w-full bg-gray-200 rounded-full h-2">
+                                    <div class="h-2 rounded-full transition-all duration-500 {% if value >= 80 %}bg-green-600{% elif value >= 60 %}bg-yellow-600{% else %}bg-red-600{% endif %}" 
+                                         style="width: {{ value|round|int }}%"></div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+
+                    <!-- Reference Ranges Column -->
+                    <div>
+                        <h4 class="text-md font-medium text-gray-700 mb-4">Biomarker Status</h4>
+                        <div class="space-y-4">
+                            {% for key, value in result.biomarkers.items() %}
+                            <div class="bg-white rounded-lg p-4 border border-gray-100">
+                                <div class="flex justify-between items-center mb-2">
+                                    <span class="text-sm font-medium text-gray-600">{{ key|upper }}</span>
+                                    <span class="badge {% if key == 'glucose' and value > 100 %}badge-danger{% elif key == 'glucose' and value > 90 %}badge-warning{% elif key == 'glucose' %}badge-success{% elif key == 'cholesterol' and value > 200 %}badge-danger{% elif key == 'cholesterol' and value > 180 %}badge-warning{% elif key == 'cholesterol' %}badge-success{% elif key == 'hdl' and value < 40 %}badge-danger{% elif key == 'hdl' and value < 50 %}badge-warning{% elif key == 'hdl' %}badge-success{% else %}badge-success{% endif %}">
+                                        {{ value|round|int }} {% if key in ['glucose', 'cholesterol', 'hdl', 'ldl', 'triglycerides'] %}mg/dL{% elif key in ['alt', 'ast'] %}U/L{% elif key == 'creatinine' %}mg/dL{% endif %}
+                                    </span>
+                                </div>
+                                <div class="text-xs text-gray-500">
+                                    {% if key == 'glucose' %}Normal Range: 70-100 mg/dL
+                                    {% elif key == 'cholesterol' %}Normal Range: 150-200 mg/dL
+                                    {% elif key == 'hdl' %}Normal Range: 40-60 mg/dL
+                                    {% elif key == 'ldl' %}Normal Range: 70-100 mg/dL
+                                    {% elif key == 'triglycerides' %}Normal Range: 50-150 mg/dL
+                                    {% elif key == 'alt' %}Normal Range: 7-56 U/L
+                                    {% elif key == 'ast' %}Normal Range: 10-40 U/L
+                                    {% elif key == 'creatinine' %}Normal Range: 0.6-1.2 mg/dL
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Medicine Analysis Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+            <!-- Left Column - Medicine Recommendations -->
+            <div class="space-y-4">
+                <!-- Top Medicine Card -->
+                {% if result.medicines and result.medicines|length > 0 %}
+                <div class="card animate-fade-in" style="animation-delay: 0.4s">
+                    <div class="p-4">
+                        <div class="flex justify-between items-start mb-3">
+                            <h3 class="text-lg font-semibold">Top Recommended Medicine</h3>
+                            <div class="flex items-center bg-blue-50 px-3 py-1.5 rounded-full">
+                                <span class="text-2xl font-bold text-blue-600">{{ result.medicines[0].score }}</span>
+                                <span class="ml-1 text-sm text-blue-600">/100</span>
+                            </div>
+                        </div>
+                        <div class="space-y-3">
+                            <div>
+                                <h4 class="text-lg font-semibold text-blue-600">{{ result.medicines[0].name }}</h4>
+                                <p class="text-sm text-gray-500">{{ result.medicines[0].category }}</p>
+                            </div>
+                            <p class="text-sm text-gray-600">{{ result.medicines[0].description }}</p>
+                            <div class="grid grid-cols-2 gap-3">
+                                <div class="bg-gray-50 p-3 rounded-lg">
+                                    <h5 class="text-sm font-medium text-gray-700 mb-1">Primary Use</h5>
+                                    <p class="text-sm text-gray-600">{{ result.medicines[0].primaryUse }}</p>
+                                </div>
+                                <div class="bg-gray-50 p-3 rounded-lg">
+                                    <h5 class="text-sm font-medium text-gray-700 mb-1">Dosage</h5>
+                                    <p class="text-sm text-gray-600">{{ result.medicines[0].dosage }}</p>
+                                </div>
+                            </div>
+                            <div class="bg-red-50 p-3 rounded-lg">
+                                <h5 class="text-sm font-medium text-red-700 mb-1">Important Warnings</h5>
+                                <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+                                    {% for warning in result.medicines[0].warnings %}
+                                    <li>{{ warning }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card animate-fade-in" style="animation-delay: 0.4s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">Medicine Recommendations</h3>
+                        <p class="text-gray-600">No medicine recommendations available at this time. Please consult with your healthcare provider.</p>
+                        </div>
+                    </div>
+                {% endif %}
+
+                <!-- Medicine Comparison Section -->
+                {% if result.medicineComparison and result.medicineComparison.comparisonMetrics %}
+                <div class="card animate-fade-in" style="animation-delay: 0.5s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-4">Medicine Comparison Analysis</h3>
+                        
+                        <!-- Detailed Medicine Analysis -->
+                        {% if result.medicineComparison.topMedicines %}
+                            {% for medicine in result.medicineComparison.topMedicines %}
+                            <div class="bg-white border border-gray-200 rounded-lg p-4 mb-4">
+                                <h4 class="text-md font-semibold mb-3">{{ medicine.name }}</h4>
+                                
+                                <!-- Metabolite Impact -->
+                                {% if medicine.metaboliteImpact %}
+                                <div class="mb-4">
+                                    <h5 class="text-sm font-medium text-gray-700 mb-2">Metabolite Impact</h5>
+                        <div class="space-y-3">
+                                        {% for metabolism_type, impact in medicine.metaboliteImpact.items() %}
+                                        <div class="bg-gray-50 p-3 rounded-lg">
+                                            <div class="flex justify-between items-center mb-1">
+                                                <span class="text-sm font-medium">{{ metabolism_type|replace('_', ' ')|title }}</span>
+                                                <span class="text-sm font-semibold text-blue-600">{{ impact.impact }}/100</span>
+                                    </div>
+                                            <p class="text-sm text-gray-600">{{ impact.description }}</p>
+                                    </div>
+                                        {% endfor %}
+                                </div>
+                                        </div>
+                                {% endif %}
+
+                                <!-- Biomarker Effects -->
+                                {% if medicine.biomarkerEffects %}
+                                <div class="mb-4">
+                                    <h5 class="text-sm font-medium text-gray-700 mb-2">Biomarker Effects</h5>
+                                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        {% for effect in medicine.biomarkerEffects %}
+                                        <div class="bg-gray-50 p-3 rounded-lg">
+                                            <h6 class="text-sm font-medium text-gray-700">{{ effect.marker }}</h6>
+                                            <div class="text-sm text-gray-600 mt-1">
+                                                <p>Change: {{ effect.expectedChange }}</p>
+                                                <p>Timeframe: {{ effect.timeframe }}</p>
+                                                <p>Confidence: {{ effect.confidenceLevel }}%</p>
+                                        </div>
+                                    </div>
+                                        {% endfor %}
+                                    </div>
+                                </div>
+                                {% endif %}
+
+                                <!-- Synergies and Contraindications -->
+                                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    {% if medicine.synergies %}
+                                    <div class="bg-green-50 p-3 rounded-lg">
+                                        <h5 class="text-sm font-medium text-green-700 mb-2">Synergistic Effects</h5>
+                                        <ul class="list-disc list-inside text-sm text-green-600 space-y-1">
+                                            {% for synergy in medicine.synergies %}
+                                                <li>{{ synergy }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                    
+                                    {% if medicine.contraindications %}
+                                    <div class="bg-red-50 p-3 rounded-lg">
+                                        <h5 class="text-sm font-medium text-red-700 mb-2">Contraindications</h5>
+                                        <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+                                            {% for contraindication in medicine.contraindications %}
+                                                <li>{{ contraindication }}</li>
+                                            {% endfor %}
+                                        </ul>
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% endif %}
+                    </div>
+                </div>
+                {% endif %}
+
+                <!-- Medicine Effectiveness Chart -->
+                <div class="card animate-fade-in" style="animation-delay: 0.5s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">Medicine Effectiveness Analysis</h3>
+                        <div class="h-60">
+                            <canvas id="medicineEffectivenessChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Column - Patient Diagnosis and Analysis -->
+            <div class="space-y-4">
+                <!-- Treatment Response Chart -->
+                <div class="card animate-fade-in" style="animation-delay: 0.4s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">Treatment Response Prediction</h3>
+                        <div class="h-60">
+                            <canvas id="treatmentResponseChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Side Effects Chart -->
+                <div class="card animate-fade-in" style="animation-delay: 0.5s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">Side Effects Risk Analysis</h3>
+                        <div class="h-60">
+                            <canvas id="sideEffectsChart"></canvas>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Patient Diagnosis -->
+                <div class="card animate-fade-in" style="animation-delay: 0.6s">
+                    <div class="p-4">
+                        <h3 class="text-lg font-semibold mb-3">Patient Diagnosis</h3>
+                        <div class="space-y-4">
+                            <!-- Primary Diagnosis -->
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Primary Diagnosis</h4>
+                                <div class="bg-blue-50 p-3 rounded-lg border border-blue-100">
+                                    <p class="text-blue-800">{{ result.diagnosis.primary }}</p>
+                                </div>
+                            </div>
+
+                            <!-- Key Findings with Chart -->
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Key Findings</h4>
+                                <div class="space-y-2">
+                                    {% for finding in result.diagnosis.findings %}
+                                    <div class="bg-gray-50 p-2 rounded-lg border border-gray-100">
+                                        <div class="flex items-start">
+                                            <svg class="w-5 h-5 text-blue-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+                                            </svg>
+                                            <p class="text-sm text-gray-700">{{ finding }}</p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                                <div class="mt-3 h-48">
+                                    <canvas id="findingsChart"></canvas>
+                                </div>
+                            </div>
+
+                            <!-- Risk Factors -->
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Risk Factors</h4>
+                                <div class="grid grid-cols-1 gap-2">
+                                    {% for risk in result.diagnosis.risks %}
+                                    <div class="bg-red-50 p-2 rounded-lg border border-red-100">
+                                        <div class="flex items-start">
+                                            <svg class="w-5 h-5 text-red-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                            </svg>
+                                            <p class="text-sm text-red-800">{{ risk }}</p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Recommendations -->
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Lifestyle Recommendations</h4>
+                                <div class="space-y-2">
+                                    {% for rec in result.diagnosis.recommendations %}
+                                    <div class="bg-green-50 p-2 rounded-lg border border-green-100">
+                                        <div class="flex items-start">
+                                            <svg class="w-5 h-5 text-green-600 mt-0.5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                                            </svg>
+                                            <p class="text-sm text-green-800">{{ rec }}</p>
+                                        </div>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+
+                            <!-- Follow-up Plan -->
+                            <div>
+                                <h4 class="text-md font-medium text-gray-900 mb-2">Follow-up Plan</h4>
+                                <div class="bg-purple-50 p-3 rounded-lg border border-purple-100">
+                                    <div class="space-y-2">
+                                        <p class="text-sm text-purple-800">{{ result.diagnosis.followup.plan }}</p>
+                                        {% if result.diagnosis.followup.nextAppointment %}
+                                        <div class="flex items-center mt-2 pt-2 border-t border-purple-100">
+                                            <svg class="w-5 h-5 text-purple-600 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+                                            </svg>
+                                            <span class="text-sm text-purple-800">Next Appointment: {{ result.diagnosis.followup.nextAppointment }}</span>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Alternative Medicines Section - Full Width -->
+        {% if result.medicines and result.medicines|length > 1 %}
+        <div class="w-full mt-6">
+            <div class="card animate-fade-in" style="animation-delay: 0.6s">
+                <div class="p-4">
+                    <h3 class="text-lg font-semibold mb-3">Alternative Medicines</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                        {% for medicine in result.medicines[1:] if result.medicines|length > 1 %}
+                        <div class="bg-white p-3 rounded-lg border border-gray-100 hover:shadow-md transition-all duration-200">
+                            <div class="flex justify-between items-start mb-2">
+                                <div>
+                                    <h4 class="font-medium text-gray-900">{{ medicine.name }}</h4>
+                                    <p class="text-sm text-gray-500">{{ medicine.category }}</p>
+                                </div>
+                                <div class="bg-gray-50 px-2 py-1 rounded-full border border-gray-100">
+                                    <span class="font-medium text-gray-900">{{ medicine.score }}</span>
+                                    <span class="text-sm text-gray-500">/100</span>
+                                </div>
+                            </div>
+                            <p class="text-sm text-gray-600 mb-2">{{ medicine.description }}</p>
+                            <button onclick="toggleMedicineDetails('medicine-{{ loop.index }}')" 
+                                    class="text-sm text-blue-600 hover:text-blue-800 font-medium flex items-center">
+                                <span class="mr-1">View Details</span>
+                                <svg class="w-4 h-4 transition-transform medicine-arrow" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+                                </svg>
+                            </button>
+                            <div id="medicine-{{ loop.index }}" class="hidden mt-3 space-y-3">
+                                <div class="grid grid-cols-2 gap-3">
+                                    <div class="bg-gray-50 p-2 rounded-lg">
+                                        <h5 class="text-sm font-medium text-gray-700 mb-1">Primary Use</h5>
+                                        <p class="text-sm text-gray-600">{{ medicine.primaryUse }}</p>
+                                    </div>
+                                    <div class="bg-gray-50 p-2 rounded-lg">
+                                        <h5 class="text-sm font-medium text-gray-700 mb-1">Dosage</h5>
+                                        <p class="text-sm text-gray-600">{{ medicine.dosage }}</p>
+                                    </div>
+                                </div>
+                                <div class="bg-red-50 p-2 rounded-lg">
+                                    <h5 class="text-sm font-medium text-red-700 mb-1">Warnings</h5>
+                                    <ul class="list-disc list-inside text-sm text-red-600 space-y-1">
+                                        {% for warning in medicine.warnings %}
+                                        <li>{{ warning }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Metabolite Analysis -->
+        <div class="card animate-fade-in mt-6" style="animation-delay: 0.15s">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Metabolite Analysis</h3>
+                    <div class="status-badge {% if result.metaboliteScore < 50 %}critical{% elif result.metaboliteScore < 70 %}warning{% else %}monitor{% endif %}">
+                        Score: {{ result.metaboliteScore }}
+                    </div>
+                </div>
+                
+                <!-- Metabolite Analysis Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Column - Chart -->
+                    <div>
+                        <div class="h-64 mb-6">
+                        <canvas id="metaboliteChart"></canvas>
+                    </div>
+                    </div>
+                    
+                    <!-- Right Column - Detailed Metrics -->
+                    <div class="space-y-6">
+                        {% for metabolite in result.metabolism %}
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-semibold text-gray-900">{{ metabolite.type }}</h4>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium {% if metabolite.percentage >= 80 %}bg-green-100 text-green-800{% elif metabolite.percentage >= 60 %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ metabolite.percentage }}%
+                                </span>
+                            </div>
+                            
+                            <p class="text-sm text-gray-600 mb-4">{{ metabolite.description if metabolite.description is defined else metabolite.details if metabolite.details is defined else "" }}</p>
+                            
+                            <!-- Sub-metrics Grid -->
+                            {% if metabolite.subMetrics is defined %}
+                            <div class="grid grid-cols-2 gap-3">
+                                {% for metric_name, metric_value in metabolite.subMetrics.items() %}
+                                <div class="bg-gray-50 rounded-lg p-2">
+                                    <div class="text-sm font-medium text-gray-700">{{ metric_name|replace('_', ' ')|title }}</div>
+                                    <div class="flex items-center mt-1">
+                                        <div class="flex-grow">
+                                            <div class="h-2 bg-gray-200 rounded-full">
+                                                <div class="h-2 rounded-full transition-all duration-500 ease-out {% if metric_value >= 80 %}bg-green-500{% elif metric_value >= 60 %}bg-yellow-500{% else %}bg-red-500{% endif %}" 
+                                                     style="width: {{ metric_value }}%"></div>
+                            </div>
+                                        </div>
+                                        <span class="ml-2 text-sm font-medium {% if metric_value >= 80 %}text-green-600{% elif metric_value >= 60 %}text-yellow-600{% else %}text-red-600{% endif %}">
+                                            {{ metric_value }}
+                                        </span>
+                                    </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comprehensive Analysis -->
+        <div class="card animate-fade-in mt-6" style="animation-delay: 0.2s">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <h3 class="text-lg font-semibold">Comprehensive Analysis</h3>
+                    <div class="status-badge {% if result.comprehensiveScore < 50 %}critical{% elif result.comprehensiveScore < 70 %}warning{% else %}monitor{% endif %}">
+                        Score: {{ result.comprehensiveScore }}
+                    </div>
+                </div>
+                
+                <!-- Comprehensive Analysis Grid -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Left Column - Chart -->
+                    <div>
+                        <div class="h-64 mb-6">
+                        <canvas id="comprehensiveChart"></canvas>
+                    </div>
+                    </div>
+                    
+                    <!-- Right Column - Detailed Analysis -->
+                    <div class="space-y-6">
+                        {% for category in result.comprehensiveAnalysis %}
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-100 p-4">
+                            <div class="flex justify-between items-center mb-3">
+                                <h4 class="font-semibold text-gray-900">{{ category.name }}</h4>
+                                <span class="px-3 py-1 rounded-full text-sm font-medium {% if category.score >= 80 %}bg-green-100 text-green-800{% elif category.score >= 60 %}bg-yellow-100 text-yellow-800{% else %}bg-red-100 text-red-800{% endif %}">
+                                    {{ category.score }}%
+                                </span>
+                            </div>
+                            
+                            <p class="text-sm text-gray-600 mb-4">{{ category.description }}</p>
+                            
+                            <!-- Details Section -->
+                            {% if category.details is defined %}
+                            <div class="bg-gray-50 rounded-lg p-3 mb-3">
+                                <h5 class="text-sm font-medium text-gray-700 mb-2">Detailed Metrics</h5>
+                                <div class="space-y-2">
+                                    {% for metric_name, metric_value in category.details.items() %}
+                                    <div class="flex justify-between items-center">
+                                        <span class="text-sm text-gray-600">{{ metric_name|replace('_', ' ')|title }}</span>
+                                        <span class="text-sm font-medium text-gray-900">{{ metric_value }}</span>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                            {% endif %}
+                            
+                            <!-- Recommendations -->
+                            {% if category.recommendations is defined %}
+                            <div class="bg-blue-50 rounded-lg p-3">
+                                <h5 class="text-sm font-medium text-blue-700 mb-2">Recommendations</h5>
+                                <ul class="list-disc list-inside space-y-1">
+                                    {% for rec in category.recommendations %}
+                                    <li class="text-sm text-blue-600">{{ rec }}</li>
+                                    {% endfor %}
+                                </ul>
+            </div>
+                            {% endif %}
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+        </div>
+    </div>
+
+        <!-- ML Insights Section -->
+        {% if analysis and analysis.get('mlInsights') %}
+        <div class="card mb-4">
+            <div class="card-header bg-info text-white">
+                <h4 class="mb-0">Statistical Analysis</h4>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>Risk Assessment</h5>
+                        <div class="alert {% if analysis.mlInsights.health_risk %}alert-warning{% else %}alert-success{% endif %}">
+                            {% if analysis.mlInsights.health_risk %}
+                            <i class="fas fa-exclamation-triangle"></i> Attention Required
+                            {% else %}
+                            <i class="fas fa-check-circle"></i> Normal Range
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>System Scores</h5>
+                        {% for system, score in analysis.mlInsights.system_scores.items() %}
+                        <div class="mb-2">
+                            <label>{{ system|title }}</label>
+                            <div class="progress">
+                                <div class="progress-bar {% if score >= 80 %}bg-success{% elif score >= 60 %}bg-warning{% else %}bg-danger{% endif %}"
+                                     role="progressbar"
+                                     style="width: {{ score }}%"
+                                     aria-valuenow="{{ score }}"
+                                     aria-valuemin="0"
+                                     aria-valuemax="100">
+                                    {{ score|round|int }}%
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <small class="text-muted">{{ analysis.mlInsights.note }}</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Mega Graph - Combined Analysis -->
+        <div class="card animate-fade-in mt-6" style="animation-delay: 0.7s">
+            <div class="p-6">
+                <div class="flex items-center justify-between mb-4">
+                    <div>
+                        <h3 class="text-lg font-semibold">Comprehensive Overview</h3>
+                        <p class="text-sm text-gray-500 mt-1">Track and compare all key health metrics over time</p>
+                    </div>
+                    <div class="relative">
+                        <select id="megaGraphTimeRange" class="appearance-none bg-gray-50 border border-gray-200 rounded-lg px-4 py-2 pr-8 text-sm font-medium hover:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                            <option value="week">Past Week</option>
+                            <option value="month">Past Month</option>
+                            <option value="year">Past Year</option>
+                        </select>
+                        <div class="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
+                            <svg class="fill-current h-4 w-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20">
+                                <path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="h-96 relative">
+                    <div class="absolute inset-0 bg-gradient-to-b from-blue-50/30 to-transparent rounded-lg"></div>
+                    <canvas id="megaGraph"></canvas>
+                </div>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 mt-6">
+                    <div class="bg-white rounded-lg p-4 border border-gray-100 transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Health Score</div>
+                        <div class="text-2xl font-bold text-blue-600">{{ result.healthScore }}</div>
+                        <div class="text-xs text-gray-400 mt-1">Baseline metric</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-gray-100 transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Metabolite Score</div>
+                        <div class="text-2xl font-bold text-green-600">{{ result.metaboliteScore }}</div>
+                        <div class="text-xs text-gray-400 mt-1">Metabolic health</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-gray-100 transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Comprehensive Score</div>
+                        <div class="text-2xl font-bold text-purple-600">{{ result.comprehensiveScore }}</div>
+                        <div class="text-xs text-gray-400 mt-1">Overall assessment</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-gray-100 transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Medicine Effectiveness</div>
+                        <div class="text-2xl font-bold text-orange-600">{{ result.medicines[0].score if result.medicines }}</div>
+                        <div class="text-xs text-gray-400 mt-1">Treatment response</div>
+                    </div>
+                    <div class="bg-white rounded-lg p-4 border border-gray-100 transform transition-all duration-200 hover:scale-105 hover:shadow-lg">
+                        <div class="text-sm font-medium text-gray-500 mb-1">Risk Level</div>
+                        <div class="text-2xl font-bold text-red-600">{{ (100 - result.healthScore)|round|int }}</div>
+                        <div class="text-xs text-gray-400 mt-1">Health concerns</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Email Modal with Enhanced Error Handling -->
+    <div id="emailModal" class="modal">
+        <div class="modal-content">
+            <button onclick="hideEmailModal()" class="modal-close">×</button>
+            <h2 class="text-xl font-semibold mb-4">Send Report via Email</h2>
+            <div class="mb-4">
+                <label for="emailInput" class="block text-sm font-medium text-gray-700">Email Address</label>
+                <input type="email" id="emailInput" class="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500" placeholder="Enter email address">
+                <p class="mt-1 text-sm text-gray-500">We'll send a detailed PDF report to this email address.</p>
+            </div>
+            <div id="emailSuccessMessage" class="hidden text-green-600 mb-4 p-2 bg-green-50 rounded-md">
+                <svg class="inline w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+                </svg>
+                <span>Email sent successfully!</span>
+            </div>
+            <div id="emailErrorMessage" class="hidden text-red-600 mb-4 p-2 bg-red-50 rounded-md">
+                <svg class="inline w-5 h-5 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+                <span></span>
+            </div>
+            <div class="flex justify-end gap-3">
+                <button onclick="hideEmailModal()" class="btn-secondary">Cancel</button>
+                <button onclick="sendEmail()" class="btn-primary" id="sendEmailBtn">
+                    <span>Send Report</span>
+                    <svg class="hidden w-5 h-5 ml-2 animate-spin" id="emailSpinner" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Chatbot Component -->
+    <div id="chatbot" class="fixed bottom-4 right-4 z-50">
+        <!-- Chat Button -->
+        <button id="chatToggle" class="bg-blue-600 hover:bg-blue-700 text-white rounded-full p-4 shadow-lg flex items-center justify-center" onclick="toggleChat()">
+            <svg id="chatIcon" class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+            </svg>
+            <svg id="closeIcon" class="w-6 h-6 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </button>
+
+        <!-- Chat Window -->
+        <div id="chatWindow" class="hidden absolute bottom-16 right-0 w-96 bg-white rounded-lg shadow-xl border border-gray-200">
+            <!-- Chat Header -->
+            <div class="bg-blue-600 text-white px-4 py-3 rounded-t-lg flex items-center">
+                <svg class="w-6 h-6 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z"/>
+                </svg>
+                <h3 class="font-semibold">MetabolX Assistant</h3>
+            </div>
+
+            <!-- Chat Messages -->
+            <div id="chatMessages" class="h-96 overflow-y-auto p-4 space-y-4">
+                <!-- Welcome Message -->
+                <div class="flex items-start">
+                    <div class="flex-shrink-0">
+                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                            <span class="text-white text-sm font-bold">M</span>
+                        </div>
+                    </div>
+                    <div class="ml-3 bg-gray-100 rounded-lg py-2 px-4 max-w-[80%]">
+                        <p class="text-sm text-gray-800">Hello! I'm your MetabolX Assistant. How can I help you understand your health analysis better?</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Chat Input -->
+            <div class="border-t p-4">
+                <div class="flex items-center">
+                    <input type="text" id="chatInput" class="flex-1 border rounded-l-lg px-4 py-2 focus:outline-none focus:border-blue-500" placeholder="Type your message...">
+                    <button onclick="sendMessage()" class="bg-blue-600 text-white px-4 py-2 rounded-r-lg hover:bg-blue-700">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"/>
+                        </svg>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Digital Twin Simulation Section -->
+    <div class="card animate-fade-in mt-6" style="animation-delay: 0.2s">
+        <div class="p-6">
+            <div class="flex items-center justify-between mb-6">
+                <h2 class="text-2xl font-bold text-gray-800">Digital Twin Simulation</h2>
+                <div class="flex items-center space-x-2">
+                    <span class="px-3 py-1 bg-blue-100 text-blue-800 rounded-full text-sm font-medium">AI-Powered</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 rounded-full text-sm font-medium">Real-time</span>
+                </div>
+            </div>
+            
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <!-- Simulation Input -->
+                <div class="space-y-4">
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Scenario Description</h3>
+                        <textarea id="simulationPrompt" 
+                                  class="w-full h-32 p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                  placeholder="Describe your health scenario (e.g., 'Starting a new exercise routine', 'Changing diet', 'Adding new medication')"></textarea>
+                    </div>
+                    
+                    <div class="bg-gray-50 rounded-lg p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Simulation Period</h3>
+                        <select id="simulationPeriod" 
+                                class="w-full p-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="2">2 weeks</option>
+                            <option value="4" selected>4 weeks</option>
+                            <option value="8">8 weeks</option>
+                            <option value="12">12 weeks</option>
+                            <option value="24">24 weeks</option>
+                        </select>
+                    </div>
+                    
+                    <button onclick="runSimulation()" 
+                            class="w-full bg-blue-600 text-white py-3 px-4 rounded-lg hover:bg-blue-700 transition-colors duration-200 flex items-center justify-center space-x-2">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+                        </svg>
+                        <span>Run Simulation</span>
+                    </button>
+                </div>
+                
+                <!-- Simulation Results -->
+                <div id="simulationResults" class="hidden space-y-4">
+                    <div class="bg-white rounded-lg border border-gray-200 p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Simulation Results</h3>
+                        <div class="space-y-4">
+                            <!-- Health Score Comparison -->
+                            <div class="flex items-center justify-between">
+                                <div class="flex-1">
+                                    <p class="text-sm text-gray-600">Current Health Score</p>
+                                    <div class="text-2xl font-bold text-gray-800">{{ result.healthScore }}</div>
+                                </div>
+                                <div class="flex-1 text-center">
+                                    <div class="w-8 h-8 mx-auto bg-blue-100 rounded-full flex items-center justify-center">
+                                        <svg class="w-4 h-4 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                                        </svg>
+                                    </div>
+                                </div>
+                                <div class="flex-1 text-right">
+                                    <p class="text-sm text-gray-600">Simulated Health Score</p>
+                                    <div id="simulatedHealthScore" class="text-2xl font-bold text-gray-800">-</div>
+                                </div>
+                            </div>
+                            
+                            <!-- Predicted Changes Chart -->
+                            <div class="h-48">
+                                <canvas id="predictedChangesChart"></canvas>
+                            </div>
+                            
+                            <!-- Detailed Analysis -->
+                            <div class="bg-gray-50 rounded-lg p-4">
+                                <h4 class="text-sm font-semibold text-gray-700 mb-2">Detailed Analysis</h4>
+                                <div id="simulationDetails" class="text-sm text-gray-600"></div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Simulation History -->
+                    <div class="bg-white rounded-lg border border-gray-200 p-4">
+                        <h3 class="text-lg font-semibold text-gray-700 mb-3">Simulation History</h3>
+                        <div id="simulationHistory" class="space-y-3"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Chart.js plugins
+        Chart.register(ChartDataLabels);
+
+        document.addEventListener('DOMContentLoaded', function() {
+            // Metabolite Analysis Pie Chart
+            const metaboliteCtx = document.getElementById('metaboliteChart').getContext('2d');
+            const metaboliteChart = new Chart(metaboliteCtx, {
+                type: 'pie',
+                data: {
+                    labels: {{ result.metabolism|map(attribute="type")|list|tojson|safe }},
+                    datasets: [{
+                        data: {{ result.metabolism|map(attribute="percentage")|list|tojson|safe }},
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(14, 165, 233, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(16, 185, 129)',
+                            'rgb(245, 158, 11)',
+                            'rgb(239, 68, 68)',
+                            'rgb(139, 92, 246)',
+                            'rgb(14, 165, 233)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 12
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Medicine Effectiveness Chart
+            const medicineEffectivenessCtx = document.getElementById('medicineEffectivenessChart').getContext('2d');
+            new Chart(medicineEffectivenessCtx, {
+                type: 'radar',
+                data: {
+                    labels: {{ result.charts.medicineEffectiveness.labels|tojson|safe }},
+                    datasets: [
+                        {
+                            label: 'Current Medicine',
+                            data: {{ result.charts.medicineEffectiveness.datasets[0].data|tojson|safe }},
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(59, 130, 246)'
+                        },
+                        {
+                            label: 'Alternative Options',
+                            data: {{ result.charts.medicineEffectiveness.datasets[1].data|tojson|safe }},
+                            borderColor: 'rgb(234, 88, 12)',
+                            backgroundColor: 'rgba(234, 88, 12, 0.2)',
+                            pointBackgroundColor: 'rgb(234, 88, 12)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(234, 88, 12)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            max: 100,
+                            ticks: {
+                                stepSize: 20
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Treatment Response Line Chart
+            const treatmentResponseCtx = document.getElementById('treatmentResponseChart').getContext('2d');
+            new Chart(treatmentResponseCtx, {
+                type: 'line',
+                data: {
+                    labels: {{ result.charts.treatmentResponse.labels|tojson|safe }},
+                    datasets: [
+                        {
+                            label: 'Health Score',
+                            data: {{ result.charts.treatmentResponse.datasets[0].data|tojson|safe }},
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        },
+                        {
+                            label: 'Metabolite Score',
+                            data: {{ result.charts.treatmentResponse.datasets[1].data|tojson|safe }},
+                            borderColor: 'rgb(16, 185, 129)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Score'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Side Effects Risk Bar Chart
+            const sideEffectsCtx = document.getElementById('sideEffectsChart').getContext('2d');
+            new Chart(sideEffectsCtx, {
+                type: 'bar',
+                data: {
+                    labels: {{ result.charts.sideEffects.labels | tojson }},
+                    datasets: [{
+                        label: 'Risk Percentage',
+                        data: {{ result.charts.sideEffects.data | tojson }},
+                        backgroundColor: [
+                            'rgba(34, 197, 94, 0.6)',  // Green for Mild
+                            'rgba(234, 179, 8, 0.6)',   // Yellow for Moderate
+                            'rgba(239, 68, 68, 0.6)'    // Red for Severe
+                        ],
+                        borderColor: [
+                            'rgb(34, 197, 94)',
+                            'rgb(234, 179, 8)',
+                            'rgb(239, 68, 68)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            title: {
+                                display: true,
+                                text: 'Risk Level (%)'
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return 'Risk: ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Findings Polar Area Chart
+            const findingsCtx = document.getElementById('findingsChart').getContext('2d');
+            new Chart(findingsCtx, {
+                type: 'radar',
+                data: {
+                    labels: {{ result.charts.findings.labels|tojson|safe }},
+                    datasets: [
+                        {
+                            label: 'Current Values',
+                            data: {{ result.charts.findings.datasets[0].data|tojson|safe }},
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.2)',
+                            pointBackgroundColor: 'rgb(59, 130, 246)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(59, 130, 246)'
+                        },
+                        {
+                            label: 'Normal Range',
+                            data: {{ result.charts.findings.datasets[1].data|tojson|safe }},
+                            borderColor: 'rgb(34, 197, 94)',
+                            backgroundColor: 'rgba(34, 197, 94, 0.2)',
+                            pointBackgroundColor: 'rgb(34, 197, 94)',
+                            pointBorderColor: '#fff',
+                            pointHoverBackgroundColor: '#fff',
+                            pointHoverBorderColor: 'rgb(34, 197, 94)'
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        r: {
+                            min: 0,
+                            ticks: {
+                                stepSize: 20
+                            }
+                        }
+                    },
+                    plugins: {
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Comprehensive Analysis Pie Chart
+            const comprehensiveCtx = document.getElementById('comprehensiveChart').getContext('2d');
+            new Chart(comprehensiveCtx, {
+                type: 'pie',
+                data: {
+                    labels: {{ result.comprehensiveAnalysis|map(attribute="name")|list|tojson|safe }},
+                    datasets: [{
+                        data: {{ result.comprehensiveAnalysis|map(attribute="score")|list|tojson|safe }},
+                        backgroundColor: [
+                            'rgba(59, 130, 246, 0.8)',
+                            'rgba(16, 185, 129, 0.8)',
+                            'rgba(245, 158, 11, 0.8)',
+                            'rgba(239, 68, 68, 0.8)',
+                            'rgba(139, 92, 246, 0.8)',
+                            'rgba(14, 165, 233, 0.8)'
+                        ],
+                        borderColor: [
+                            'rgb(59, 130, 246)',
+                            'rgb(16, 185, 129)',
+                            'rgb(245, 158, 11)',
+                            'rgb(239, 68, 68)',
+                            'rgb(139, 92, 246)',
+                            'rgb(14, 165, 233)'
+                        ],
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 12
+                                },
+                                padding: 20
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Mega Graph Initialization with enhanced visuals
+            const megaGraphCtx = document.getElementById('megaGraph').getContext('2d');
+            new Chart(megaGraphCtx, {
+                type: 'line',
+                data: {
+                    labels: ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'],
+                    datasets: [
+                        {
+                            label: 'Health Score',
+                            data: generateTrendData({{ result.healthScore|tojson|safe }}, 7),
+                            borderColor: 'rgb(59, 130, 246)',
+                            backgroundColor: 'rgba(59, 130, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'white',
+                            pointBorderColor: 'rgb(59, 130, 246)',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Metabolite Score',
+                            data: generateTrendData({{ result.metaboliteScore|tojson|safe }}, 7),
+                            borderColor: 'rgb(16, 185, 129)',
+                            backgroundColor: 'rgba(16, 185, 129, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'white',
+                            pointBorderColor: 'rgb(16, 185, 129)',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Comprehensive Score',
+                            data: generateTrendData({{ result.comprehensiveScore|tojson|safe }}, 7),
+                            borderColor: 'rgb(139, 92, 246)',
+                            backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'white',
+                            pointBorderColor: 'rgb(139, 92, 246)',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Medicine Effectiveness',
+                            data: generateTrendData({{ result.medicines[0].score|default(0)|tojson|safe }}, 7),
+                            borderColor: 'rgb(234, 88, 12)',
+                            backgroundColor: 'rgba(234, 88, 12, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'white',
+                            pointBorderColor: 'rgb(234, 88, 12)',
+                            pointBorderWidth: 2
+                        },
+                        {
+                            label: 'Risk Level',
+                            data: generateTrendData({{ (100 - result.healthScore)|round|int|tojson|safe }}, 7),
+                            borderColor: 'rgb(239, 68, 68)',
+                            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                            fill: true,
+                            tension: 0.4,
+                            pointRadius: 4,
+                            pointHoverRadius: 6,
+                            pointBackgroundColor: 'white',
+                            pointBorderColor: 'rgb(239, 68, 68)',
+                            pointBorderWidth: 2
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false
+                    },
+                    animations: {
+                        tension: {
+                            duration: 1000,
+                            easing: 'linear'
+                        },
+                        radius: {
+                            duration: 400,
+                            easing: 'linear'
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 100,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 11
+                                },
+                                padding: 10,
+                                callback: function(value) {
+                                    return value + '%';
+                                }
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 11
+                                },
+                                padding: 10
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                            labels: {
+                                usePointStyle: true,
+                                padding: 20,
+                                font: {
+                                    family: "'Inter', sans-serif",
+                                    size: 12
+                                }
+                            }
+                        },
+                        tooltip: {
+                            mode: 'index',
+                            intersect: false,
+                            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+                            titleColor: '#1f2937',
+                            bodyColor: '#4b5563',
+                            borderColor: '#e5e7eb',
+                            borderWidth: 1,
+                            padding: 12,
+                            displayColors: true,
+                            callbacks: {
+                                label: function(context) {
+                                    return context.dataset.label + ': ' + context.raw + '%';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+
+            // Helper function to generate trend data
+            function generateTrendData(baseValue, points) {
+                const data = [];
+                for (let i = 0; i < points; i++) {
+                    // Add some random variation but keep within reasonable bounds
+                    const variation = (Math.random() - 0.5) * 10;
+                    let value = baseValue + variation;
+                    // Ensure value stays between 0 and 100
+                    value = Math.min(100, Math.max(0, value));
+                    data.push(value);
+                }
+                return data;
+            }
+
+            // Enhanced event listeners for the mega graph controls
+            document.getElementById('megaGraphTimeRange').addEventListener('change', function(e) {
+                const timeRange = e.target.value;
+                let labels;
+                let points;
+                
+                switch(timeRange) {
+                    case 'week':
+                        labels = ['Day 1', 'Day 2', 'Day 3', 'Day 4', 'Day 5', 'Day 6', 'Day 7'];
+                        points = 7;
+                        break;
+                    case 'month':
+                        labels = Array.from({length: 30}, (_, i) => `Day ${i + 1}`);
+                        points = 30;
+                        break;
+                    case 'year':
+                        labels = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                        points = 12;
+                        break;
+                }
+
+                // Update data for each dataset
+                megaGraph.data.labels = labels;
+                megaGraph.data.datasets.forEach(dataset => {
+                    let baseValue;
+                    switch(dataset.label) {
+                        case 'Health Score':
+                            baseValue = {{ result.healthScore|tojson }};
+                            break;
+                        case 'Metabolite Score':
+                            baseValue = {{ result.metaboliteScore|tojson }};
+                            break;
+                        case 'Comprehensive Score':
+                            baseValue = {{ result.comprehensiveScore|tojson }};
+                            break;
+                        case 'Medicine Effectiveness':
+                            baseValue = {{ result.medicines[0].score|default(0)|tojson }};
+                            break;
+                        case 'Risk Level':
+                            baseValue = {{ (100 - result.healthScore)|round|int|tojson }};
+                            break;
+                    }
+                    dataset.data = generateTrendData(baseValue, points);
+                });
+                
+                megaGraph.update();
+            });
+
+            document.getElementById('megaGraphMetrics').addEventListener('change', function(e) {
+                const selectedMetrics = Array.from(e.target.selectedOptions).map(option => option.value);
+                megaGraph.data.datasets.forEach(dataset => {
+                    const metricName = dataset.label.toLowerCase().replace(' ', '');
+                    dataset.hidden = !selectedMetrics.includes(metricName);
+                });
+                megaGraph.update('active');
+            });
+        });
+
+        // Medicine details toggle function
+        function toggleMedicineDetails(id) {
+            const element = document.getElementById(id);
+            const arrow = element.previousElementSibling.querySelector('.medicine-arrow');
+            element.classList.toggle('hidden');
+            arrow.style.transform = element.classList.contains('hidden') ? '' : 'rotate(180deg)';
+        }
+
+        // Email Modal Functions
+        function showEmailModal() {
+            document.getElementById('emailModal').classList.add('visible');
+        }
+
+        function hideEmailModal() {
+            document.getElementById('emailModal').classList.remove('visible');
+        }
+
+        // Enhanced email sending function with better error handling
+        function sendEmail() {
+            const emailInput = document.getElementById('emailInput');
+            const email = emailInput.value.trim();
+            const successMessage = document.getElementById('emailSuccessMessage');
+            const errorMessage = document.getElementById('emailErrorMessage');
+            const sendButton = document.getElementById('sendEmailBtn');
+            const spinner = document.getElementById('emailSpinner');
+
+            // Reset messages
+                successMessage.style.display = 'none';
+            errorMessage.style.display = 'none';
+
+            // Email validation
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!email || !emailRegex.test(email)) {
+                errorMessage.querySelector('span').textContent = 'Please enter a valid email address';
+                errorMessage.style.display = 'block';
+                return;
+            }
+
+            // Show loading state
+            sendButton.disabled = true;
+            spinner.classList.remove('hidden');
+            sendButton.querySelector('span').textContent = 'Sending...';
+
+            // Prepare report data
+            const reportData = {
+                patientInfo: {
+                    name: document.getElementById('patientName').textContent,
+                    age: document.getElementById('patientAge').textContent,
+                    gender: document.getElementById('patientGender').textContent,
+                },
+                scores: {
+                    healthScore: document.getElementById('healthScore').textContent,
+                    metaboliteScore: document.getElementById('metaboliteScore').textContent,
+                },
+                analysis: {
+                    findings: document.getElementById('findings').textContent,
+                    recommendations: document.getElementById('recommendations').textContent,
+                },
+            };
+
+            // Send email request
+            fetch('/email_report', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    email: email,
+                    reportData: reportData,
+                }),
+                })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.success) {
+                    successMessage.style.display = 'block';
+                    setTimeout(hideEmailModal, 2000);
+                } else {
+                    throw new Error(data.error || 'Failed to send email');
+                }
+            })
+            .catch(error => {
+                errorMessage.querySelector('span').textContent = 'Error sending email: ' + error.message;
+                errorMessage.style.display = 'block';
+            })
+            .finally(() => {
+                // Reset button state
+                sendButton.disabled = false;
+                spinner.classList.add('hidden');
+                sendButton.querySelector('span').textContent = 'Send Report';
+            });
+        }
+
+        // Add this to your existing JavaScript
+        function toggleChat() {
+            const chatWindow = document.getElementById('chatWindow');
+            const chatIcon = document.getElementById('chatIcon');
+            const closeIcon = document.getElementById('closeIcon');
+            chatWindow.classList.toggle('hidden');
+            chatIcon.classList.toggle('hidden');
+            closeIcon.classList.toggle('hidden');
+        }
+
+        function appendMessage(message, isUser = false) {
+            const chatMessages = document.getElementById('chatMessages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'flex items-start' + (isUser ? ' justify-end' : '');
+            
+            const messageContent = `
+                ${isUser ? '' : `
+                <div class="flex-shrink-0">
+                    <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center">
+                        <span class="text-white text-sm font-bold">M</span>
+                    </div>
+                </div>`}
+                <div class="ml-3 ${isUser ? 'bg-blue-600 text-white' : 'bg-gray-100 text-gray-800'} rounded-lg py-2 px-4 max-w-[80%]">
+                    <p class="text-sm">${message}</p>
+                </div>
+            `;
+            
+            messageDiv.innerHTML = messageContent;
+            chatMessages.appendChild(messageDiv);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        function sendMessage() {
+            const chatInput = document.getElementById('chatInput');
+            const message = chatInput.value.trim();
+            
+            if (!message) return;
+            
+            // Append user message
+            appendMessage(message, true);
+            chatInput.value = '';
+            
+            // Send to backend and get response
+            fetch('/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ message: message })
+            })
+            .then(response => response.json())
+            .then(data => {
+                appendMessage(data.response);
+            })
+            .catch(error => {
+                appendMessage('Sorry, I encountered an error. Please try again.');
+                console.error('Error:', error);
+            });
+        }
+
+        // Add event listener for Enter key in chat input
+        document.getElementById('chatInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Digital Twin Simulation Functions
+        async function runSimulation() {
+            const prompt = document.getElementById('simulationPrompt').value;
+            const period = document.getElementById('simulationPeriod').value;
+            
+            if (!prompt) {
+                alert('Please enter a scenario description');
+                return;
+            }
+
+            try {
+                const response = await fetch('/simulate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        prompt: prompt,
+                        period: period,
+                        currentAnalysis: {{ result|tojson|safe }}
+                    })
+                });
+
+                const data = await response.json();
+                
+                if (data.success) {
+                    updateSimulationResults(data);
+                    addToSimulationHistory(prompt, period, data);
+                } else {
+                    alert('Error running simulation: ' + data.error);
+                }
+            } catch (error) {
+                console.error('Error:', error);
+                alert('Error running simulation. Please try again.');
+            }
+        }
+
+        function updateSimulationResults(data) {
+            // Show results section
+            document.getElementById('simulationResults').classList.remove('hidden');
+            
+            // Update simulated health score
+            document.getElementById('simulatedHealthScore').textContent = data.simulatedHealthScore;
+            
+            // Update simulation details
+            document.getElementById('simulationDetails').textContent = data.simulationDetails;
+            
+            // Create predicted changes chart
+            const ctx = document.getElementById('predictedChangesChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.predictedChanges.map(change => change.metric),
+                    datasets: [{
+                        label: 'Predicted Impact (%)',
+                        data: data.predictedChanges.map(change => change.impact),
+                        backgroundColor: data.predictedChanges.map(change => 
+                            change.impact >= 0 ? 'rgba(16, 185, 129, 0.8)' : 'rgba(239, 68, 68, 0.8)'
+                        ),
+                        borderColor: data.predictedChanges.map(change => 
+                            change.impact >= 0 ? 'rgb(16, 185, 129)' : 'rgb(239, 68, 68)'
+                        ),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            grid: {
+                                color: 'rgba(0, 0, 0, 0.05)',
+                                drawBorder: false
+                            }
+                        },
+                        x: {
+                            grid: {
+                                display: false
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            display: false
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return context.raw + '% change';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        function addToSimulationHistory(prompt, period, data) {
+            const historyContainer = document.getElementById('simulationHistory');
+            const historyItem = document.createElement('div');
+            historyItem.className = 'bg-gray-50 rounded-lg p-3 hover:bg-gray-100 transition-colors duration-200';
+            
+            const date = new Date().toLocaleDateString();
+            const time = new Date().toLocaleTimeString();
+            
+            historyItem.innerHTML = `
+                <div class="flex items-center justify-between mb-2">
+                    <span class="text-sm font-medium text-gray-700">${date} ${time}</span>
+                    <span class="text-sm text-gray-500">${period} weeks</span>
+                </div>
+                <p class="text-sm text-gray-600 mb-2">${prompt}</p>
+                <div class="flex items-center space-x-2">
+                    <span class="text-sm font-medium text-gray-700">Health Score Change:</span>
+                    <span class="text-sm ${data.simulatedHealthScore >= {{ result.healthScore }} ? 'text-green-600' : 'text-red-600'}">
+                        ${data.simulatedHealthScore >= {{ result.healthScore }} ? '+' : ''}${(data.simulatedHealthScore - {{ result.healthScore }}).toFixed(1)}
+                    </span>
+                </div>
+            `;
+            
+            historyContainer.insertBefore(historyItem, historyContainer.firstChild);
+        }
+    </script>
+</body>
+</html> 

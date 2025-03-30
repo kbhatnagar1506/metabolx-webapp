@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+
+{% block title %}MetabolX - Blood Report Analysis{% endblock %}
+
+{% block content %}
+<div class="min-h-screen py-12">
+    <div class="max-w-3xl mx-auto px-4">
+        <!-- Form Card -->
+        <div class="card">
+            <!-- Header -->
+            <div class="card-header">
+                <h2 class="text-2xl font-semibold">Blood Report Analysis</h2>
+                <p class="mt-2 text-blue-100 opacity-90">Paste your blood report for instant AI-powered analysis</p>
+            </div>
+
+            <!-- Progress Bar -->
+            <div class="progress-container">
+                <div class="progress-bar">
+                    <div class="progress-bar-fill" style="width: 100%;"></div>
+                </div>
+                <div class="progress-steps">
+                    <!-- Step 1 -->
+                    <div class="progress-step completed">
+                        <div class="progress-step-circle completed">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <span class="progress-step-text">Personal Info</span>
+                    </div>
+                    <!-- Step 2 -->
+                    <div class="progress-step completed">
+                        <div class="progress-step-circle completed">
+                            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 13l4 4L19 7"/>
+                            </svg>
+                        </div>
+                        <span class="progress-step-text">Medical History</span>
+                    </div>
+                    <!-- Step 3 -->
+                    <div class="progress-step active">
+                        <div class="progress-step-circle active">3</div>
+                        <span class="progress-step-text">Blood Report</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Form -->
+            <form method="POST" class="p-6 space-y-6">
+                <!-- Blood Report Text Area -->
+                <div class="form-group">
+                    <label for="report_text" class="form-label flex items-center">
+                        <svg class="w-4 h-4 mr-2 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+                        </svg>
+                        Blood Report Content
+                    </label>
+                    <div class="relative">
+                        <textarea
+                            id="report_text"
+                            name="report_text"
+                            rows="12"
+                            class="form-input resize-none"
+                            placeholder="Paste your complete blood report here. The AI will automatically extract all relevant information including hemoglobin, WBC count, platelets, glucose, cholesterol, creatinine, and other parameters."
+                            required
+                        ></textarea>
+                        <div class="absolute top-0 right-0 mt-2 mr-3">
+                            <div class="text-xs text-secondary">All data is processed securely</div>
+                        </div>
+                    </div>
+                    <p class="mt-2 text-sm text-secondary">
+                        You can paste the entire report - our AI will automatically identify and analyze all relevant parameters.
+                    </p>
+                </div>
+
+                <!-- Navigation Buttons -->
+                <div class="flex justify-between items-center pt-6">
+                    <a href="{{ url_for('medical_history') }}" class="btn btn-secondary">
+                        <svg class="icon mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 19l-7-7 7-7"/>
+                        </svg>
+                        Back
+                    </a>
+                    <button type="submit" class="btn btn-primary">
+                        Analyze Report
+                        <svg class="icon ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                        </svg>
+                    </button>
+                </div>
+            </form>
+        </div>
+
+        <!-- Help Text -->
+        <div class="mt-6 text-center">
+            <p class="help-text">
+                Need help? <a href="#">Contact our support team</a>
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // Form validation and animations
+    const form = document.querySelector('form');
+    const textarea = document.getElementById('report_text');
+
+    // Add validation classes and animations
+    textarea.addEventListener('invalid', (e) => {
+        e.preventDefault();
+        textarea.classList.add('border-red-500');
+        textarea.closest('.form-group').classList.add('shake');
+        setTimeout(() => textarea.closest('.form-group').classList.remove('shake'), 600);
+    });
+
+    textarea.addEventListener('input', () => {
+        textarea.classList.remove('border-red-500');
+        // Auto-expand textarea
+        textarea.style.height = 'auto';
+        textarea.style.height = (textarea.scrollHeight) + 'px';
+    });
+
+    // Initial height adjustment
+    textarea.style.height = 'auto';
+    textarea.style.height = (textarea.scrollHeight) + 'px';
+
+    // Add custom animations
+    const style = document.createElement('style');
+    style.textContent = `
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-4px); }
+            75% { transform: translateX(4px); }
+        }
+
+        .shake {
+            animation: shake 0.3s ease-in-out;
+        }
+
+        .form-group {
+            transition: all 0.3s ease;
+        }
+
+        .form-input:focus {
+            transform: scale(1.005);
+        }
+
+        .btn:hover .icon {
+            transform: translateX(4px);
+        }
+
+        .btn-secondary:hover .icon {
+            transform: translateX(-4px);
+        }
+
+        textarea {
+            transition: height 0.2s ease;
+        }
+
+        /* Button press effect */
+        .btn:active {
+            transform: scale(0.98);
+        }
+    `;
+    document.head.appendChild(style);
+</script>
+{% endblock %} 

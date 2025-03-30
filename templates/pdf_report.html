@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetabolX Health Analysis Report</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+            border-bottom: 2px solid #007AFF;
+            padding-bottom: 20px;
+        }
+        .logo {
+            color: #007AFF;
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section-title {
+            color: #007AFF;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 5px;
+        }
+        .info-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 15px;
+            margin-bottom: 20px;
+        }
+        .info-item {
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 5px;
+        }
+        .info-label {
+            font-weight: bold;
+            color: #666;
+            margin-bottom: 5px;
+        }
+        .info-value {
+            color: #333;
+        }
+        .metabolite-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        .metabolite-table th,
+        .metabolite-table td {
+            padding: 10px;
+            border: 1px solid #ddd;
+            text-align: left;
+        }
+        .metabolite-table th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        .risk-badge {
+            display: inline-block;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 14px;
+            font-weight: bold;
+        }
+        .risk-high {
+            background-color: #ffebee;
+            color: #c62828;
+        }
+        .risk-moderate {
+            background-color: #fff3e0;
+            color: #ef6c00;
+        }
+        .risk-low {
+            background-color: #e8f5e9;
+            color: #2e7d32;
+        }
+        .recommendations {
+            list-style-type: none;
+            padding-left: 0;
+        }
+        .recommendations li {
+            margin-bottom: 10px;
+            padding-left: 20px;
+            position: relative;
+        }
+        .recommendations li:before {
+            content: "•";
+            color: #007AFF;
+            position: absolute;
+            left: 0;
+        }
+        .footer {
+            margin-top: 50px;
+            text-align: center;
+            font-size: 12px;
+            color: #666;
+            border-top: 1px solid #eee;
+            padding-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div class="logo">MetabolX</div>
+        <h1>Health Analysis Report</h1>
+        <p>Generated on {{ now().strftime('%B %d, %Y') }}</p>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Patient Information</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Name</div>
+                <div class="info-value">{{ patient_name }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Age</div>
+                <div class="info-value">{{ age }} years</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Gender</div>
+                <div class="info-value">{{ gender }}</div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Blood Type</div>
+                <div class="info-value">{{ blood_type }}</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Metabolite Analysis</div>
+        <table class="metabolite-table">
+            <thead>
+                <tr>
+                    <th>Metabolite</th>
+                    <th>Value</th>
+                    <th>Normal Range</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>Glucose</td>
+                    <td>{{ metabolites.glucose }} mg/dL</td>
+                    <td>70-100 mg/dL</td>
+                    <td>
+                        {% if metabolites.glucose < 70 %}
+                        <span class="risk-badge risk-high">Low</span>
+                        {% elif metabolites.glucose > 100 %}
+                        <span class="risk-badge risk-high">High</span>
+                        {% else %}
+                        <span class="risk-badge risk-low">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Total Cholesterol</td>
+                    <td>{{ metabolites.cholesterol }} mg/dL</td>
+                    <td>125-200 mg/dL</td>
+                    <td>
+                        {% if metabolites.cholesterol > 200 %}
+                        <span class="risk-badge risk-high">High</span>
+                        {% elif metabolites.cholesterol < 125 %}
+                        <span class="risk-badge risk-high">Low</span>
+                        {% else %}
+                        <span class="risk-badge risk-low">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>Triglycerides</td>
+                    <td>{{ metabolites.triglycerides }} mg/dL</td>
+                    <td><150 mg/dL</td>
+                    <td>
+                        {% if metabolites.triglycerides > 150 %}
+                        <span class="risk-badge risk-high">High</span>
+                        {% else %}
+                        <span class="risk-badge risk-low">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>HDL Cholesterol</td>
+                    <td>{{ metabolites.hdl }} mg/dL</td>
+                    <td>>40 mg/dL</td>
+                    <td>
+                        {% if metabolites.hdl < 40 %}
+                        <span class="risk-badge risk-high">Low</span>
+                        {% else %}
+                        <span class="risk-badge risk-low">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                <tr>
+                    <td>LDL Cholesterol</td>
+                    <td>{{ metabolites.ldl }} mg/dL</td>
+                    <td><100 mg/dL</td>
+                    <td>
+                        {% if metabolites.ldl > 100 %}
+                        <span class="risk-badge risk-high">High</span>
+                        {% else %}
+                        <span class="risk-badge risk-low">Normal</span>
+                        {% endif %}
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Health Risk Assessment</div>
+        <div class="info-grid">
+            <div class="info-item">
+                <div class="info-label">Diabetes Risk</div>
+                <div class="info-value">
+                    <span class="risk-badge {% if analysis.diabetesRisk == 'High' %}risk-high{% elif analysis.diabetesRisk == 'Moderate' %}risk-moderate{% else %}risk-low{% endif %}">
+                        {{ analysis.diabetesRisk }}
+                    </span>
+                </div>
+            </div>
+            <div class="info-item">
+                <div class="info-label">Heart Disease Risk</div>
+                <div class="info-value">
+                    <span class="risk-badge {% if analysis.heartDiseaseRisk == 'High' %}risk-high{% elif analysis.heartDiseaseRisk == 'Moderate' %}risk-moderate{% else %}risk-low{% endif %}">
+                        {{ analysis.heartDiseaseRisk }}
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="section">
+        <div class="section-title">Recommendations</div>
+        <ul class="recommendations">
+            {% for recommendation in analysis.recommendations %}
+            <li>{{ recommendation }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+
+    <div class="footer">
+        <p>This report is generated by MetabolX and should be reviewed with your healthcare provider.</p>
+        <p>Report ID: {{ now().strftime('%Y%m%d%H%M%S') }}</p>
+    </div>
+</body>
+</html> 

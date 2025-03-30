@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MetabolX - Patient Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="min-h-screen bg-primary-bg">
+        <!-- Navigation -->
+        <nav class="bg-secondary-bg border-b border-gray-200">
+            <div class="max-w-7xl mx-auto px-4">
+                <div class="flex justify-between items-center py-6">
+                    <div class="flex items-center space-x-3">
+                        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none">
+                            <path d="M12 2L2 7L12 12L22 7L12 2Z" stroke="currentColor" class="text-accent-color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 17L12 22L22 17" stroke="currentColor" class="text-accent-color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                            <path d="M2 12L12 17L22 12" stroke="currentColor" class="text-accent-color" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+                        </svg>
+                        <div>
+                            <h1 class="text-2xl font-bold text-text-primary">MetabolX</h1>
+                            <p class="text-sm text-text-secondary">Patient Analysis Dashboard</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <div class="text-sm">
+                            <div class="text-text-secondary">Analysis Date</div>
+                            <div id="analysisDate" class="font-medium text-text-primary"></div>
+                        </div>
+                        <button class="bg-accent-light text-accent-color px-4 py-2 rounded-lg font-medium hover:bg-blue-100 transition-colors">
+                            Export Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </nav>
+
+        <!-- Main Content -->
+        <div class="max-w-7xl mx-auto px-4 py-8">
+            <!-- Patient Information Card -->
+            <div class="card animate-fade-up mb-8">
+                <div class="p-6">
+                    <div class="flex justify-between items-start mb-6">
+                        <div>
+                            <h2 class="text-2xl font-bold text-text-primary mb-2" id="patientName"></h2>
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                                <div>
+                                    <div class="text-sm text-text-secondary">Age</div>
+                                    <div id="patientAge" class="font-medium"></div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-text-secondary">Gender</div>
+                                    <div id="patientGender" class="font-medium"></div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-text-secondary">BMI</div>
+                                    <div id="patientBMI" class="font-medium"></div>
+                                </div>
+                                <div>
+                                    <div class="text-sm text-text-secondary">Ethnicity</div>
+                                    <div id="patientEthnicity" class="font-medium"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-sm text-text-secondary mb-1">Patient ID</div>
+                            <div class="font-mono text-sm bg-gray-100 px-3 py-1 rounded">MX-2024-001</div>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <div class="text-sm font-medium text-text-secondary mb-2">Diagnosed Conditions</div>
+                            <div id="patientConditions" class="text-sm space-y-1"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-text-secondary mb-2">Current Medications</div>
+                            <div id="patientMedications" class="text-sm space-y-1"></div>
+                        </div>
+                        <div>
+                            <div class="text-sm font-medium text-text-secondary mb-2">Allergies</div>
+                            <div id="patientAllergies" class="text-sm space-y-1"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                <div class="card animate-fade-up" style="animation-delay: 0.1s">
+                    <div class="p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold">Health Score</h3>
+                            <div id="scoreStatus" class="status-badge"></div>
+                        </div>
+                        <div class="flex items-baseline">
+                            <div id="healthScore" class="text-5xl font-bold text-success-color">--</div>
+                            <div class="ml-2 text-sm text-text-secondary">/100</div>
+                        </div>
+                        <div id="scoreChange" class="mt-2 text-sm"></div>
+                    </div>
+                </div>
+                
+                <div class="card animate-fade-up" style="animation-delay: 0.2s">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold mb-4">Critical Markers</h3>
+                        <div id="criticalMarkers" class="space-y-2"></div>
+                    </div>
+                </div>
+
+                <div class="card animate-fade-up" style="animation-delay: 0.3s">
+                    <div class="p-6">
+                        <h3 class="text-lg font-semibold mb-4">Improvement Areas</h3>
+                        <div id="improvementAreas" class="space-y-2"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detailed Analysis -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <!-- Left Column -->
+                <div class="space-y-8">
+                    <!-- Key Metrics Chart -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.4s">
+                        <div class="p-6">
+                            <div class="flex items-center justify-between mb-4">
+                                <h3 class="text-lg font-semibold">Key Health Metrics</h3>
+                                <div class="flex space-x-2">
+                                    <button class="text-sm text-accent-color hover:text-accent-color-dark" onclick="toggleMetricsView('chart')">Chart View</button>
+                                    <span class="text-gray-300">|</span>
+                                    <button class="text-sm text-text-secondary hover:text-accent-color" onclick="toggleMetricsView('table')">Table View</button>
+                                </div>
+                            </div>
+                            <div id="metricsChart" class="metrics-view">
+                                <canvas height="300"></canvas>
+                            </div>
+                            <div id="metricsTable" class="metrics-view hidden">
+                                <!-- Table will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Top Medicine Recommendation -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.5s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">Top Recommended Medicine</h3>
+                            <div id="topMedicine" class="space-y-4">
+                                <!-- Top medicine will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- All Medicine Recommendations -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.6s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">All Medicine Recommendations</h3>
+                            <div id="medicineList" class="space-y-4">
+                                <!-- Medicine list will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Right Column -->
+                <div class="space-y-8">
+                    <!-- Detailed Analysis -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.7s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">Comprehensive Analysis</h3>
+                            <div class="prose" id="detailedAnalysis"></div>
+                        </div>
+                    </div>
+
+                    <!-- Metabolism Analysis -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.8s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">Metabolism Profile</h3>
+                            <div class="grid grid-cols-2 gap-4 mb-6">
+                                <div>
+                                    <canvas id="metabolismChart" height="200"></canvas>
+                                </div>
+                                <div id="metabolismInsights" class="prose">
+                                    <!-- Insights will be populated by JavaScript -->
+                                </div>
+                            </div>
+                            <div id="metabolismRecommendations" class="mt-4 p-4 bg-accent-light rounded-lg text-sm text-accent-color">
+                                <!-- Recommendations will be populated by JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Recommendations -->
+                    <div class="card animate-scale-in" style="animation-delay: 0.9s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">Personalized Recommendations</h3>
+                            <div class="space-y-6">
+                                <div>
+                                    <h4 class="font-medium text-text-primary mb-2">Lifestyle Changes</h4>
+                                    <ul id="lifestyleRecommendations" class="list-disc list-inside text-sm space-y-1">
+                                        <!-- Lifestyle recommendations will be populated by JavaScript -->
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-text-primary mb-2">Dietary Recommendations</h4>
+                                    <ul id="dietaryRecommendations" class="list-disc list-inside text-sm space-y-1">
+                                        <!-- Dietary recommendations will be populated by JavaScript -->
+                                    </ul>
+                                </div>
+                                <div>
+                                    <h4 class="font-medium text-text-primary mb-2">Follow-up Tests</h4>
+                                    <ul id="followUpTests" class="list-disc list-inside text-sm space-y-1">
+                                        <!-- Follow-up recommendations will be populated by JavaScript -->
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Trends -->
+                    <div class="card animate-scale-in" style="animation-delay: 1s">
+                        <div class="p-6">
+                            <h3 class="text-lg font-semibold mb-4">Health Trends</h3>
+                            <div id="trendsChart">
+                                <canvas height="200"></canvas>
+                            </div>
+                            <div class="mt-4 grid grid-cols-3 gap-4">
+                                <div class="text-center">
+                                    <div class="text-sm text-text-secondary">Previous</div>
+                                    <div id="previousScore" class="font-medium"></div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-sm text-text-secondary">Current</div>
+                                    <div id="currentScore" class="font-medium"></div>
+                                </div>
+                                <div class="text-center">
+                                    <div class="text-sm text-text-secondary">Projected</div>
+                                    <div id="projectedScore" class="font-medium"></div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+</body>
+</html> 
